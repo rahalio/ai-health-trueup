@@ -1,0 +1,1890 @@
+openapi: 3.0.3
+info:
+  title: Trueup
+  version: 0.1.0
+  description: >-
+    Benefits-realisation system of record for health-system AI portfolios. Every
+    initiative registers an announced benefit against a named operating line, locks a
+    pre-pilot baseline, passes ordered gates for classification, fairness and
+    pilot-to-scale replication, and only then admits finance attestation of realised
+    value. Living processes carry drift owners; unrealised benefit is written down on
+    a schedule so the portfolio always reconciles to the original announcement.
+  x-product-slug: ai-health-trueup
+  x-source: ai-in-health/Accenture-Healthcare-Walking-the-AI-Talk/
+servers:
+  - url: https://api.example.com
+tags:
+  - name: Initiatives
+    description: Initiative intake, accountable ownership, and three-dimension classification
+  - name: Baselines
+    description: Pre-pilot baseline locking and measurement method registry
+  - name: Gates
+    description: Ordered stage gates from classification through value and capability transfer
+  - name: Assurance
+    description: Fairness and safety review, living-process drift control, and benefit suspension
+  - name: Attestation
+    description: Finance attestation of realised value, counter-metrics, and write-downs
+  - name: Workforce
+    description: Role redesign, redeployment, and capability transfer from external hires
+  - name: Portfolio
+    description: Announced, gated, attested, and written-down portfolio positions
+  - name: Reporting
+    description: Board packs and immutable evidence chain exports
+paths:
+  /v1/initiatives:
+    get:
+      operationId: listInitiatives
+      summary: List AI initiatives across the portfolio
+      tags: [Initiatives]
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+        - name: stage
+          in: query
+          schema:
+            type: string
+            enum: [announced, baselined, piloting, scaled, live, suspended, closed]
+        - name: businessOwnerId
+          in: query
+          schema:
+            type: string
+        - name: atRiskOnly
+          in: query
+          schema:
+            type: boolean
+            default: false
+      responses:
+        "200":
+          description: Initiatives page
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListEnvelopeInitiative"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    post:
+      operationId: registerInitiative
+      summary: Register an announced initiative with an accountable business owner
+      description: >-
+        Rejected when the nominated owner does not hold the operating budget named as
+        the benefit line, since a technology function cannot own a business benefit.
+      tags: [Initiatives]
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InitiativeCreate"
+      responses:
+        "201":
+          description: Initiative registered at announced stage
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DataEnvelopeInitiative"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+  /v1/initiatives/{initiativeId}:
+    parameters:
+      - $ref: "#/components/parameters/InitiativeId"
+    get:
+      operationId: getInitiative
+      summary: Get an initiative with current gate position and value state
+      tags: [Initiatives]
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Initiative
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DataEnvelopeInitiative"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /v1/initiatives/{initiativeId}/classification:
+    parameters:
+      - $ref: "#/components/parameters/InitiativeId"
+    post:
+      operationId: classifyInitiative
+      summary: Classify against process change, data and data models, and workforce
+      description: >-
+        An initiative claiming process reinvention while changing neither data models
+        nor roles is returned as automation with its benefit expectation reset.
+      tags: [Initiatives]
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DimensionClassificationCreate"
+      responses:
+        "201":
+          description: Classification adjudicated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DataEnvelopeDimensionClassification"
+  /v1/initiatives/{initiativeId}/benefit-claims:
+    parameters:
+      - $ref: "#/components/parameters/InitiativeId"
+    get:
+      operationId: listBenefitClaims
+      summary: List benefit claims for an initiative
+      tags: [Initiatives]
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          description: Benefit claims page
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListEnvelopeBenefitClaim"
+    post:
+      operationId: registerBenefitClaim
+      summary: Register a benefit claim against a named ledger or clinical line
+      tags: [Initiatives]
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BenefitClaimCreate"
+      responses:
+        "201":
+          description: Claim registered, unbaselined
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DataEnvelopeBenefitClaim"
+  /v1/benefit-claims/{claimId}/baseline:
+    parameters:
+      - $ref: "#/components/parameters/ClaimId"
+    post:
+      operationId: lockBaseline
+      summary: Lock a pre-pilot baseline, cohort and measurement method
+      description: >-
+        Immutable once locked. Refused if pilot spend has already been recorded, so
+        that a baseline can never be fitted to a known result.
+      tags: [Baselines]
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BaselineCreate"
+      responses:
+        "201":
+          description: Baseline locked and pinned
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DataEnvelopeBaseline"
+        "409":
+          description: Baseline already locked or pilot already underway
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /v1/measurement-methods:
+    get:
+      operationId: listMeasurementMethods
+      summary: List approved measurement methods and their evidence requirements
+      tags: [Baselines]
+      security:
+        - ApiKeyAuth: []
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          description: Measurement methods page
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListEnvelopeMeasurementMethod"
+  /v1/gates:
+    get:
+      operationId: listGateDecisions
+      summary: List gate decisions and current holds across the portfolio
+      tags: [Gates]
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+        - name: gateType
+          in: query
+          schema:
+            $ref: "#/components/schemas/GateType"
+        - name: outcome
+          in: query
+          schema:
+            type: string
+            enum: [passed, held, failed, waived]
+      responses:
+        "200":
+          description: Gate decisions page
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListEnvelopeGateDecision"
+  /v1/initiatives/{initiativeId}/gates/{gateType}/decision:
+    parameters:
+      - $ref: "#/components/parameters/InitiativeId"
+      - name: gateType
+        in: path
+        required: true
+        schema:
+          $ref: "#/components/schemas/GateType"
+    post:
+      operationId: recordGateDecision
+      summary: Record a gate decision with prerequisites enforced in order
+      description: >-
+        The value gate cannot be passed while the fairness gate is held, and the
+        scale gate cannot be passed without replication evidence outside the pilot unit.
+      tags: [Gates]
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GateDecisionCreate"
+      responses:
+        "201":
+          description: Gate decision recorded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DataEnvelopeGateDecision"
+        "409":
+          description: Prerequisite gate not satisfied
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /v1/initiatives/{initiativeId}/fairness-reviews:
+    parameters:
+      - $ref: "#/components/parameters/InitiativeId"
+    post:
+      operationId: submitFairnessReview
+      summary: Submit ethics, fairness, safety and auditability review with subgroup impact
+      description: >-
+        Subgroup and validation evidence is referenced from the organisation's algorithm
+        register rather than re-measured here. An unmeasured subgroup dimension holds the
+        value gate closed instead of attaching a caveat to the claim.
+      tags: [Assurance]
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FairnessReviewCreate"
+      responses:
+        "201":
+          description: Review recorded, value gate opened or held accordingly
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DataEnvelopeFairnessReview"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+  /v1/living-processes:
+    get:
+      operationId: listLivingProcessControls
+      summary: List live initiatives with drift owners, triggers and validation state
+      tags: [Assurance]
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+        - name: driftState
+          in: query
+          schema:
+            type: string
+            enum: [stable, drifting, undispositioned, suspended, rebaselined]
+      responses:
+        "200":
+          description: Living process controls page
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListEnvelopeLivingProcessControl"
+  /v1/living-processes/{controlId}/drift-events:
+    parameters:
+      - $ref: "#/components/parameters/ControlId"
+    post:
+      operationId: reportDriftEvent
+      summary: Report a drift trigger breach from MLOps or operational monitoring
+      tags: [Assurance]
+      security:
+        - ApiKeyAuth: []
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DriftEventCreate"
+      responses:
+        "201":
+          description: Drift event recorded with disposition deadline
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DataEnvelopeDriftEvent"
+  /v1/living-processes/{controlId}/suspension:
+    parameters:
+      - $ref: "#/components/parameters/ControlId"
+    post:
+      operationId: suspendBenefitAccrual
+      summary: Suspend benefit accrual on expired validation or undispositioned drift
+      tags: [Assurance]
+      security:
+        - ApiKeyAuth: []
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason, initiatedBy]
+              properties:
+                reason:
+                  type: string
+                  enum:
+                    [
+                      clinical_validation_expired,
+                      drift_undispositioned,
+                      fairness_gate_reopened,
+                      counter_metric_breach,
+                      vendor_recall,
+                    ]
+                initiatedBy:
+                  type: string
+                detail:
+                  type: string
+      responses:
+        "202":
+          description: Accrual suspended and owner notified
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DataEnvelopeLivingProcessControl"
+  /v1/benefit-claims/{claimId}/attestation:
+    parameters:
+      - $ref: "#/components/parameters/ClaimId"
+    post:
+      operationId: attestRealisedValue
+      summary: Attest or reject realised value against the ledger or actuarial trend
+      description: >-
+        Only finance roles may call this operation. An initiative owner attesting
+        their own claim is rejected, and attestation is refused while the value gate
+        is held.
+      tags: [Attestation]
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FinanceAttestationCreate"
+      responses:
+        "201":
+          description: Attestation recorded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DataEnvelopeFinanceAttestation"
+        "403":
+          description: Attester is the claim owner or lacks a finance role
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "409":
+          description: Value gate held, so no attestation is admissible
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /v1/benefit-claims/{claimId}/counter-metrics:
+    parameters:
+      - $ref: "#/components/parameters/ClaimId"
+    get:
+      operationId: listCounterMetrics
+      summary: List quality, safety and access counter-metrics paired with a savings claim
+      tags: [Attestation]
+      security:
+        - ApiKeyAuth: []
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          description: Counter-metrics page
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListEnvelopeCounterMetric"
+  /v1/benefit-claims/{claimId}/write-down:
+    parameters:
+      - $ref: "#/components/parameters/ClaimId"
+    post:
+      operationId: writeDownBenefit
+      summary: Write down unrealised benefit on the scheduled cadence
+      tags: [Attestation]
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BenefitWriteDownCreate"
+      responses:
+        "201":
+          description: Write-down recorded as a blameless governance event
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DataEnvelopeBenefitWriteDown"
+  /v1/workforce-redesigns:
+    get:
+      operationId: listWorkforceRedesigns
+      summary: List role redesigns, redeployment plans and approval state
+      tags: [Workforce]
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+        - name: initiativeId
+          in: query
+          schema:
+            type: string
+        - name: approvalState
+          in: query
+          schema:
+            type: string
+            enum: [draft, submitted, approved, rejected]
+      responses:
+        "200":
+          description: Workforce redesigns page
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListEnvelopeWorkforceRedesign"
+    post:
+      operationId: submitWorkforceRedesign
+      summary: Submit redesigned roles and required skills for pre-go-live approval
+      tags: [Workforce]
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WorkforceRedesignCreate"
+      responses:
+        "201":
+          description: Redesign submitted for approval
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DataEnvelopeWorkforceRedesign"
+  /v1/workforce-redesigns/{redesignId}/capability-transfer:
+    parameters:
+      - $ref: "#/components/parameters/RedesignId"
+    post:
+      operationId: recordCapabilityTransfer
+      summary: Record capability transfer from external hires to permanent staff
+      tags: [Workforce]
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CapabilityTransferCreate"
+      responses:
+        "201":
+          description: Transfer progress recorded and at-risk flag re-evaluated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DataEnvelopeCapabilityTransfer"
+  /v1/portfolio/snapshot:
+    get:
+      operationId: getPortfolioSnapshot
+      summary: Get announced, gated, attested and written-down portfolio positions
+      tags: [Portfolio]
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: period
+          in: query
+          schema:
+            type: string
+            example: 2026-Q3
+        - name: businessUnitId
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Portfolio snapshot reconciling to the original announcement
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DataEnvelopePortfolioSnapshot"
+  /v1/reports/board:
+    get:
+      operationId: getBoardReport
+      summary: Generate a board pack from gate and attestation records
+      tags: [Reporting]
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: period
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: committee
+          in: query
+          schema:
+            type: string
+            enum: [audit, quality, full_board]
+      responses:
+        "200":
+          description: Board report with claimed and attested value kept separate
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DataEnvelopeBoardReport"
+  /v1/reports/evidence-chain:
+    get:
+      operationId: listEvidenceChainEntries
+      summary: Export the immutable evidence chain behind a claim or attestation
+      tags: [Reporting]
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+        - name: claimId
+          in: query
+          schema:
+            type: string
+        - name: initiativeId
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Evidence chain entries page
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListEnvelopeEvidenceChainEntry"
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    Cursor:
+      name: cursor
+      in: query
+      schema:
+        type: string
+    Limit:
+      name: limit
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 200
+        default: 50
+    InitiativeId:
+      name: initiativeId
+      in: path
+      required: true
+      schema:
+        type: string
+    ClaimId:
+      name: claimId
+      in: path
+      required: true
+      schema:
+        type: string
+    ControlId:
+      name: controlId
+      in: path
+      required: true
+      schema:
+        type: string
+    RedesignId:
+      name: redesignId
+      in: path
+      required: true
+      schema:
+        type: string
+  responses:
+    Unauthorized:
+      description: Missing or invalid credentials
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+    UnprocessableEntity:
+      description: Validation failed
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+  schemas:
+    ResponseMeta:
+      type: object
+      required: [requestId, timestamp]
+      properties:
+        requestId:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+    Problem:
+      type: object
+      required: [type, title, status]
+      properties:
+        type:
+          type: string
+          format: uri
+        title:
+          type: string
+        status:
+          type: integer
+        detail:
+          type: string
+        blockingGate:
+          $ref: "#/components/schemas/GateType"
+    Money:
+      type: object
+      required: [amount, currency]
+      properties:
+        amount:
+          type: number
+          format: double
+        currency:
+          type: string
+          example: USD
+    GateType:
+      type: string
+      enum: [classification, fairness_safety, pilot_to_scale, value, capability_transfer]
+    Initiative:
+      type: object
+      required: [id, name, stage, businessOwnerId, announcedValue]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        stage:
+          type: string
+          enum: [announced, baselined, piloting, scaled, live, suspended, closed]
+        organisationType:
+          type: string
+          enum: [provider, payer, pharmacy_benefit_manager, integrated]
+        businessOwnerId:
+          type: string
+          description: Holder of the operating budget the benefit is claimed against
+        executiveSponsorId:
+          type: string
+        deliveryLeadId:
+          type: string
+        processCategory:
+          type: string
+          enum:
+            [
+              personalised_patient_care,
+              clinical_connectivity,
+              security_and_compliance,
+              enterprise_operations,
+              revenue_cycle,
+              utilisation_management,
+              human_capital,
+              information_technology,
+            ]
+        announcedValue:
+          $ref: "#/components/schemas/Money"
+        announcedAt:
+          type: string
+          format: date
+        announcedForum:
+          type: string
+          enum: [board, investor_call, press_release, internal_town_hall, budget_submission]
+        currentGatePosition:
+          $ref: "#/components/schemas/GateType"
+        classificationId:
+          type: string
+        atRiskReasons:
+          type: array
+          items:
+            type: string
+            enum:
+              [
+                single_contractor_dependency,
+                baseline_not_locked,
+                fairness_review_outstanding,
+                pilot_not_replicated,
+                validation_expired,
+                counter_metric_moving,
+              ]
+    InitiativeCreate:
+      type: object
+      required: [name, businessOwnerId, announcedValue, targetLedgerLine]
+      properties:
+        name:
+          type: string
+        businessOwnerId:
+          type: string
+        executiveSponsorId:
+          type: string
+        deliveryLeadId:
+          type: string
+        processCategory:
+          type: string
+        announcedValue:
+          $ref: "#/components/schemas/Money"
+        announcedAt:
+          type: string
+          format: date
+        announcedForum:
+          type: string
+        targetLedgerLine:
+          type: string
+    BenefitClaim:
+      type: object
+      required: [id, initiativeId, benefitType, claimedValue, state]
+      properties:
+        id:
+          type: string
+        initiativeId:
+          type: string
+        benefitType:
+          type: string
+          enum:
+            [
+              labour_cost_reduction,
+              length_of_stay_reduction,
+              readmission_penalty_avoidance,
+              cost_per_episode_reduction,
+              revenue_uplift,
+              denial_rate_reduction,
+              administrative_cost_reduction,
+              referral_leakage_recovery,
+            ]
+        claimedValue:
+          $ref: "#/components/schemas/Money"
+        attestedValue:
+          $ref: "#/components/schemas/Money"
+        writtenDownValue:
+          $ref: "#/components/schemas/Money"
+        state:
+          type: string
+          enum: [unbaselined, baselined, measuring, attested, rejected, written_down, suspended]
+        targetLedgerLine:
+          type: string
+        baselineId:
+          type: string
+        derivedFromLabour:
+          type: boolean
+          description: When true, counter-metrics must be published with the claim
+        pairedCounterMetricIds:
+          type: array
+          items:
+            type: string
+    BenefitClaimCreate:
+      type: object
+      required: [benefitType, claimedValue, targetLedgerLine]
+      properties:
+        benefitType:
+          type: string
+        claimedValue:
+          $ref: "#/components/schemas/Money"
+        targetLedgerLine:
+          type: string
+        derivedFromLabour:
+          type: boolean
+        narrative:
+          type: string
+    Baseline:
+      type: object
+      required: [id, claimId, measurementMethodCode, lockedAt, cohortDefinition]
+      properties:
+        id:
+          type: string
+        claimId:
+          type: string
+        measurementMethodCode:
+          type: string
+        measurementMethodVersion:
+          type: integer
+        cohortDefinition:
+          type: string
+          description: Cohort logic held as a definition rather than a patient-level extract
+        baselineValue:
+          type: number
+          format: double
+        baselineUnit:
+          type: string
+          example: days_per_discharge
+        windowStart:
+          type: string
+          format: date
+        windowEnd:
+          type: string
+          format: date
+        comparisonType:
+          type: string
+          enum:
+            [
+              pre_post,
+              concurrent_control_unit,
+              stepped_wedge,
+              actuarial_trend,
+              randomised_rollout,
+            ]
+        sourceSystem:
+          type: string
+          enum: [general_ledger, data_warehouse, claims, quality_registry, hris]
+        lockedBy:
+          type: string
+        lockedAt:
+          type: string
+          format: date-time
+        contentHash:
+          type: string
+    BaselineCreate:
+      type: object
+      required: [measurementMethodCode, cohortDefinition, baselineValue, comparisonType]
+      properties:
+        measurementMethodCode:
+          type: string
+        cohortDefinition:
+          type: string
+        baselineValue:
+          type: number
+          format: double
+        baselineUnit:
+          type: string
+        windowStart:
+          type: string
+          format: date
+        windowEnd:
+          type: string
+          format: date
+        comparisonType:
+          type: string
+          enum:
+            [
+              pre_post,
+              concurrent_control_unit,
+              stepped_wedge,
+              actuarial_trend,
+              randomised_rollout,
+            ]
+        sourceSystem:
+          type: string
+    MeasurementMethod:
+      type: object
+      required: [code, label, version, evidenceRequirements]
+      properties:
+        code:
+          type: string
+          example: stepped_wedge_los
+        label:
+          type: string
+        version:
+          type: integer
+        evidenceRequirements:
+          type: array
+          items:
+            type: string
+        minimumObservationMonths:
+          type: integer
+        financeAcceptable:
+          type: boolean
+          description: Whether finance will attest value measured by this method
+        approvedBy:
+          type: string
+    DimensionClassification:
+      type: object
+      required: [id, initiativeId, verdict]
+      properties:
+        id:
+          type: string
+        initiativeId:
+          type: string
+        processChange:
+          type: boolean
+        dataAndDataModels:
+          type: boolean
+        workforceChange:
+          type: boolean
+        verdict:
+          type: string
+          enum: [process_reimagined, automation_only, data_only, workforce_only, unclassified]
+        benefitExpectationAdjustedTo:
+          $ref: "#/components/schemas/Money"
+        rationale:
+          type: string
+        adjudicatedBy:
+          type: string
+        adjudicatedAt:
+          type: string
+          format: date-time
+    DimensionClassificationCreate:
+      type: object
+      required: [processChange, dataAndDataModels, workforceChange]
+      properties:
+        processChange:
+          type: boolean
+        dataAndDataModels:
+          type: boolean
+        workforceChange:
+          type: boolean
+        claimedVerdict:
+          type: string
+          enum: [process_reimagined, automation_only, data_only, workforce_only]
+        rationale:
+          type: string
+    GateDecision:
+      type: object
+      required: [id, initiativeId, gateType, outcome, decidedAt]
+      properties:
+        id:
+          type: string
+        initiativeId:
+          type: string
+        claimId:
+          type: string
+        gateType:
+          $ref: "#/components/schemas/GateType"
+        outcome:
+          type: string
+          enum: [passed, held, failed, waived]
+        holdReason:
+          type: string
+        replicationEvidence:
+          type: object
+          description: Required for the pilot-to-scale gate
+          properties:
+            pilotUnitId:
+              type: string
+            replicationUnitIds:
+              type: array
+              items:
+                type: string
+            pilotEffectSize:
+              type: number
+              format: float
+            replicationEffectSize:
+              type: number
+              format: float
+            effectHeld:
+              type: boolean
+        decidedBy:
+          type: string
+        decidedAt:
+          type: string
+          format: date-time
+        waiverApprovedBy:
+          type: string
+        cycleTimeDays:
+          type: integer
+    GateDecisionCreate:
+      type: object
+      required: [outcome, decidedBy]
+      properties:
+        outcome:
+          type: string
+          enum: [passed, held, failed, waived]
+        claimId:
+          type: string
+        holdReason:
+          type: string
+        replicationEvidence:
+          type: object
+          properties:
+            pilotUnitId:
+              type: string
+            replicationUnitIds:
+              type: array
+              items:
+                type: string
+            pilotEffectSize:
+              type: number
+              format: float
+            replicationEffectSize:
+              type: number
+              format: float
+            effectHeld:
+              type: boolean
+        decidedBy:
+          type: string
+        waiverApprovedBy:
+          type: string
+    FairnessReview:
+      type: object
+      required: [id, initiativeId, outcome]
+      properties:
+        id:
+          type: string
+        initiativeId:
+          type: string
+        decisionScope:
+          type: string
+          enum:
+            [
+              clinical_recommendation,
+              utilisation_decision,
+              coverage_determination,
+              staffing_allocation,
+              patient_outreach_targeting,
+              claims_adjudication,
+            ]
+        subgroupImpacts:
+          type: array
+          items:
+            type: object
+            required: [dimension, value, measured]
+            properties:
+              dimension:
+                type: string
+                enum: [age_band, sex, race_ethnicity, primary_language, payer_class, geography]
+              value:
+                type: string
+              measured:
+                type: boolean
+              effectDelta:
+                type: number
+                format: float
+        auditabilityConfirmed:
+          type: boolean
+        appealPathExists:
+          type: boolean
+        clinicalValidation:
+          $ref: "#/components/schemas/ClinicalValidationState"
+        outcome:
+          type: string
+          enum: [passed, blocking, conditional]
+        conditions:
+          type: array
+          items:
+            type: string
+        reviewedBy:
+          type: string
+        reviewedAt:
+          type: string
+          format: date-time
+    FairnessReviewCreate:
+      type: object
+      required: [decisionScope, subgroupImpacts, auditabilityConfirmed]
+      properties:
+        decisionScope:
+          type: string
+        subgroupImpacts:
+          type: array
+          items:
+            type: object
+            required: [dimension, value, measured]
+            properties:
+              dimension:
+                type: string
+              value:
+                type: string
+              measured:
+                type: boolean
+              effectDelta:
+                type: number
+                format: float
+        auditabilityConfirmed:
+          type: boolean
+        appealPathExists:
+          type: boolean
+        clinicalValidation:
+          $ref: "#/components/schemas/ClinicalValidationState"
+        reviewedBy:
+          type: string
+    ClinicalValidationState:
+      type: object
+      description: Mirrored from the algorithm register; never authored in this system
+      properties:
+        algorithmRegisterRef:
+          type: string
+        modelRegistryRef:
+          type: string
+        regulatoryClassification:
+          type: string
+          enum:
+            [
+              not_a_medical_device,
+              clinical_decision_support_exempt,
+              samd_class_i,
+              samd_class_ii,
+              samd_class_iii,
+            ]
+        validatedAt:
+          type: string
+          format: date
+        validationExpiresAt:
+          type: string
+          format: date
+        postMarketSurveillanceActive:
+          type: boolean
+        recallNoticeRef:
+          type: string
+    LivingProcessControl:
+      type: object
+      required: [id, initiativeId, driftOwnerId, driftState]
+      properties:
+        id:
+          type: string
+        initiativeId:
+          type: string
+        claimId:
+          type: string
+        driftOwnerId:
+          type: string
+        driftTrigger:
+          type: object
+          properties:
+            metric:
+              type: string
+            thresholdValue:
+              type: number
+              format: float
+            evaluationFrequency:
+              type: string
+              enum: [daily, weekly, monthly, quarterly]
+        driftState:
+          type: string
+          enum: [stable, drifting, undispositioned, suspended, rebaselined]
+        rebaselineDueAt:
+          type: string
+          format: date
+        accrualSuspended:
+          type: boolean
+        suspensionReason:
+          type: string
+        lastEvaluatedAt:
+          type: string
+          format: date-time
+    DriftEventCreate:
+      type: object
+      required: [metric, observedValue, detectedAt]
+      properties:
+        metric:
+          type: string
+        observedValue:
+          type: number
+          format: float
+        thresholdValue:
+          type: number
+          format: float
+        detectedAt:
+          type: string
+          format: date-time
+        sourceSystem:
+          type: string
+          enum: [mlops, data_warehouse, quality_registry, utilisation_management]
+    DriftEvent:
+      type: object
+      required: [id, controlId, metric, detectedAt, disposition]
+      properties:
+        id:
+          type: string
+        controlId:
+          type: string
+        metric:
+          type: string
+        observedValue:
+          type: number
+          format: float
+        thresholdValue:
+          type: number
+          format: float
+        detectedAt:
+          type: string
+          format: date-time
+        dispositionDeadline:
+          type: string
+          format: date-time
+        disposition:
+          type: string
+          enum: [pending, accepted_variation, retrain, rebaseline, suspend_accrual, close_initiative]
+        dispositionedBy:
+          type: string
+        dispositionedAt:
+          type: string
+          format: date-time
+    FinanceAttestationCreate:
+      type: object
+      required: [decision, attestedBy, period]
+      properties:
+        decision:
+          type: string
+          enum: [attested, rejected, partial]
+        attestedValue:
+          $ref: "#/components/schemas/Money"
+        attestedBy:
+          type: string
+        period:
+          type: string
+          example: 2026-Q3
+        tieOutReference:
+          type: string
+          description: Ledger journal, cost centre, or actuarial trend reference
+        rejectionReason:
+          type: string
+    FinanceAttestation:
+      type: object
+      required: [id, claimId, decision, attestedBy, period]
+      properties:
+        id:
+          type: string
+        claimId:
+          type: string
+        decision:
+          type: string
+          enum: [attested, rejected, partial]
+        claimedValue:
+          $ref: "#/components/schemas/Money"
+        attestedValue:
+          $ref: "#/components/schemas/Money"
+        variance:
+          $ref: "#/components/schemas/Money"
+        attestedBy:
+          type: string
+        attesterRole:
+          type: string
+          enum: [finance_business_partner, controller, internal_audit, chief_financial_officer]
+        period:
+          type: string
+        tieOutSource:
+          type: string
+          enum: [general_ledger, actuarial_trend, payroll, claims_paid]
+        tieOutReference:
+          type: string
+        rejectionReason:
+          type: string
+        counterMetricsReviewed:
+          type: boolean
+        attestedAt:
+          type: string
+          format: date-time
+        evidenceChainRef:
+          type: string
+    CounterMetric:
+      type: object
+      required: [id, claimId, metric, direction]
+      properties:
+        id:
+          type: string
+        claimId:
+          type: string
+        metric:
+          type: string
+          enum:
+            [
+              readmission_rate,
+              mortality_index,
+              patient_safety_indicator,
+              appointment_wait_days,
+              denial_rate,
+              appeal_overturn_rate,
+              complaint_volume,
+              staff_vacancy_rate,
+              prior_authorisation_turnaround_days,
+            ]
+        baselineValue:
+          type: number
+          format: float
+        currentValue:
+          type: number
+          format: float
+        direction:
+          type: string
+          enum: [improved, unchanged, degraded]
+        transferSuspected:
+          type: boolean
+          description: True when a saving appears to have displaced cost or harm elsewhere
+        period:
+          type: string
+        sourceSystem:
+          type: string
+    WorkforceRedesign:
+      type: object
+      required: [id, initiativeId, approvalState]
+      properties:
+        id:
+          type: string
+        initiativeId:
+          type: string
+        redesignedRoles:
+          type: array
+          items:
+            type: object
+            properties:
+              roleTitle:
+                type: string
+              headcountBefore:
+                type: integer
+              headcountAfter:
+                type: integer
+              distinctivelyHumanTasks:
+                type: array
+                items:
+                  type: string
+              machineAugmentedTasks:
+                type: array
+                items:
+                  type: string
+        redeploymentPlan:
+          type: string
+        requiredSkills:
+          type: array
+          items:
+            type: string
+        approvalState:
+          type: string
+          enum: [draft, submitted, approved, rejected]
+        approvedBy:
+          type: string
+        approvedBeforeGoLive:
+          type: boolean
+        submittedAt:
+          type: string
+          format: date-time
+    WorkforceRedesignCreate:
+      type: object
+      required: [initiativeId, redesignedRoles]
+      properties:
+        initiativeId:
+          type: string
+        redesignedRoles:
+          type: array
+          items:
+            type: object
+            properties:
+              roleTitle:
+                type: string
+              headcountBefore:
+                type: integer
+              headcountAfter:
+                type: integer
+              distinctivelyHumanTasks:
+                type: array
+                items:
+                  type: string
+              machineAugmentedTasks:
+                type: array
+                items:
+                  type: string
+        redeploymentPlan:
+          type: string
+        requiredSkills:
+          type: array
+          items:
+            type: string
+    CapabilityTransferCreate:
+      type: object
+      required: [externalHolderId, receivingStaffIds, status]
+      properties:
+        externalHolderId:
+          type: string
+        receivingStaffIds:
+          type: array
+          items:
+            type: string
+        status:
+          type: string
+          enum: [not_started, in_progress, complete, failed]
+        contractEndDate:
+          type: string
+          format: date
+        evidence:
+          type: string
+    CapabilityTransfer:
+      type: object
+      required: [id, redesignId, status]
+      properties:
+        id:
+          type: string
+        redesignId:
+          type: string
+        initiativeId:
+          type: string
+        externalHolderId:
+          type: string
+        externalHolderSource:
+          type: string
+          enum: [lateral_hire, vendor_consultant, contractor, secondment]
+        receivingStaffIds:
+          type: array
+          items:
+            type: string
+        status:
+          type: string
+          enum: [not_started, in_progress, complete, failed]
+        contractEndDate:
+          type: string
+          format: date
+        benefitAtRisk:
+          type: boolean
+        completedAt:
+          type: string
+          format: date-time
+    BenefitWriteDownCreate:
+      type: object
+      required: [amount, reason, approvedBy]
+      properties:
+        amount:
+          $ref: "#/components/schemas/Money"
+        reason:
+          type: string
+          enum:
+            [
+              pilot_did_not_replicate,
+              baseline_overstated,
+              double_counted,
+              dependency_lost,
+              regulatory_change,
+              process_reverted,
+              initiative_cancelled,
+            ]
+        approvedBy:
+          type: string
+        narrative:
+          type: string
+    BenefitWriteDown:
+      type: object
+      required: [id, claimId, amount, reason, recordedAt]
+      properties:
+        id:
+          type: string
+        claimId:
+          type: string
+        initiativeId:
+          type: string
+        amount:
+          $ref: "#/components/schemas/Money"
+        reason:
+          type: string
+        narrative:
+          type: string
+        approvedBy:
+          type: string
+        scheduledCycle:
+          type: string
+          example: 2026-Q3
+        blameless:
+          type: boolean
+          default: true
+        recordedAt:
+          type: string
+          format: date-time
+    PortfolioSnapshot:
+      type: object
+      required: [period, announcedValue, attestedValue]
+      properties:
+        period:
+          type: string
+        businessUnitId:
+          type: string
+        initiativeCount:
+          type: integer
+        announcedValue:
+          $ref: "#/components/schemas/Money"
+        gatedValue:
+          $ref: "#/components/schemas/Money"
+        attestedValue:
+          $ref: "#/components/schemas/Money"
+        writtenDownValue:
+          $ref: "#/components/schemas/Money"
+        unreconciledValue:
+          $ref: "#/components/schemas/Money"
+        programmeSpend:
+          $ref: "#/components/schemas/Money"
+        attestedValuePerProgrammeDollar:
+          type: number
+          format: float
+        reinventionSharePct:
+          type: number
+          format: float
+        pilotsReplicatedPct:
+          type: number
+          format: float
+        medianGateCycleTimeDays:
+          type: integer
+        reannouncedBenefitCount:
+          type: integer
+          description: Same saving claimed again in a later planning cycle
+        reconcilesToAnnouncement:
+          type: boolean
+    BoardReport:
+      type: object
+      required: [id, period, committee]
+      properties:
+        id:
+          type: string
+        period:
+          type: string
+        committee:
+          type: string
+          enum: [audit, quality, full_board]
+        snapshot:
+          $ref: "#/components/schemas/PortfolioSnapshot"
+        initiativesHeldAtGate:
+          type: array
+          items:
+            type: object
+            properties:
+              initiativeId:
+                type: string
+              gateType:
+                $ref: "#/components/schemas/GateType"
+              holdReason:
+                type: string
+              daysHeld:
+                type: integer
+        counterMetricExceptions:
+          type: array
+          items:
+            $ref: "#/components/schemas/CounterMetric"
+        writeDowns:
+          type: array
+          items:
+            $ref: "#/components/schemas/BenefitWriteDown"
+        claimedAndAttestedNeverSummed:
+          type: boolean
+          default: true
+        releasedBy:
+          type: string
+        releasedAt:
+          type: string
+          format: date-time
+    EvidenceChainEntry:
+      type: object
+      required: [id, sequence, entryType, recordedAt]
+      properties:
+        id:
+          type: string
+        sequence:
+          type: integer
+        initiativeId:
+          type: string
+        claimId:
+          type: string
+        entryType:
+          type: string
+          enum:
+            [
+              initiative_registered,
+              baseline_locked,
+              classification_adjudicated,
+              gate_decision,
+              fairness_review,
+              drift_event,
+              accrual_suspended,
+              attestation,
+              write_down,
+              board_release,
+            ]
+        actorId:
+          type: string
+        payloadHash:
+          type: string
+        previousHash:
+          type: string
+        recordedAt:
+          type: string
+          format: date-time
+    DataEnvelopeInitiative:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          $ref: "#/components/schemas/Initiative"
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    DataEnvelopeBenefitClaim:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          $ref: "#/components/schemas/BenefitClaim"
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    DataEnvelopeBaseline:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          $ref: "#/components/schemas/Baseline"
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    DataEnvelopeDimensionClassification:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          $ref: "#/components/schemas/DimensionClassification"
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    DataEnvelopeGateDecision:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          $ref: "#/components/schemas/GateDecision"
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    DataEnvelopeFairnessReview:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          $ref: "#/components/schemas/FairnessReview"
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    DataEnvelopeLivingProcessControl:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          $ref: "#/components/schemas/LivingProcessControl"
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    DataEnvelopeDriftEvent:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          $ref: "#/components/schemas/DriftEvent"
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    DataEnvelopeFinanceAttestation:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          $ref: "#/components/schemas/FinanceAttestation"
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    DataEnvelopeBenefitWriteDown:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          $ref: "#/components/schemas/BenefitWriteDown"
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    DataEnvelopeWorkforceRedesign:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          $ref: "#/components/schemas/WorkforceRedesign"
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    DataEnvelopeCapabilityTransfer:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          $ref: "#/components/schemas/CapabilityTransfer"
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    DataEnvelopePortfolioSnapshot:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          $ref: "#/components/schemas/PortfolioSnapshot"
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    DataEnvelopeBoardReport:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          $ref: "#/components/schemas/BoardReport"
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    ListEnvelopeInitiative:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items:
+                $ref: "#/components/schemas/Initiative"
+            nextCursor:
+              type: string
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    ListEnvelopeBenefitClaim:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items:
+                $ref: "#/components/schemas/BenefitClaim"
+            nextCursor:
+              type: string
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    ListEnvelopeMeasurementMethod:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items:
+                $ref: "#/components/schemas/MeasurementMethod"
+            nextCursor:
+              type: string
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    ListEnvelopeGateDecision:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items:
+                $ref: "#/components/schemas/GateDecision"
+            nextCursor:
+              type: string
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    ListEnvelopeLivingProcessControl:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items:
+                $ref: "#/components/schemas/LivingProcessControl"
+            nextCursor:
+              type: string
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    ListEnvelopeCounterMetric:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items:
+                $ref: "#/components/schemas/CounterMetric"
+            nextCursor:
+              type: string
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    ListEnvelopeWorkforceRedesign:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items:
+                $ref: "#/components/schemas/WorkforceRedesign"
+            nextCursor:
+              type: string
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    ListEnvelopeEvidenceChainEntry:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items:
+                $ref: "#/components/schemas/EvidenceChainEntry"
+            nextCursor:
+              type: string
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
